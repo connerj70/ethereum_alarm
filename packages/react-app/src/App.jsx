@@ -1,7 +1,7 @@
 import WalletConnectProvider from "@walletconnect/web3-provider";
 //import Torus from "@toruslabs/torus-embed"
 import WalletLink from "walletlink";
-import { Alert, Button, Col, Menu, Row } from "antd";
+import { Alert, Button, Col, Menu, Row, Card } from "antd";
 import "antd/dist/antd.css";
 import React, { useCallback, useEffect, useState } from "react";
 import { BrowserRouter, Link, Route, Switch } from "react-router-dom";
@@ -53,7 +53,7 @@ const { ethers } = require("ethers");
 */
 
 /// 📡 What chain are your contracts deployed to?
-const targetNetwork = NETWORKS.localhost; // <------- select your target frontend network (localhost, rinkeby, xdai, mainnet)
+const targetNetwork = NETWORKS.kovan; // <------- select your target frontend network (localhost, rinkeby, xdai, mainnet)
 
 // 😬 Sorry for all the console logging
 const DEBUG = true;
@@ -71,8 +71,8 @@ const scaffoldEthProvider = navigator.onLine
   : null;
 const poktMainnetProvider = navigator.onLine
   ? new ethers.providers.StaticJsonRpcProvider(
-      "https://eth-mainnet.gateway.pokt.network/v1/lb/611156b4a585a20035148406",
-    )
+    "https://eth-mainnet.gateway.pokt.network/v1/lb/611156b4a585a20035148406",
+  )
   : null;
 const mainnetInfura = navigator.onLine
   ? new ethers.providers.StaticJsonRpcProvider("https://mainnet.infura.io/v3/" + INFURA_ID)
@@ -170,8 +170,8 @@ function App(props) {
     poktMainnetProvider && poktMainnetProvider._isProvider
       ? poktMainnetProvider
       : scaffoldEthProvider && scaffoldEthProvider._network
-      ? scaffoldEthProvider
-      : mainnetInfura;
+        ? scaffoldEthProvider
+        : mainnetInfura;
 
   const [injectedProvider, setInjectedProvider] = useState();
   const [address, setAddress] = useState();
@@ -240,8 +240,14 @@ function App(props) {
   const mainnetContracts = useContractLoader(mainnetProvider, contractConfig);
 
   // If you want to call a function on a new block
-  useOnBlock(mainnetProvider, () => {
+  useOnBlock(mainnetProvider, async () => {
     console.log(`⛓ A new mainnet block is here: ${mainnetProvider._lastBlockNumber}`);
+    console.log("ABOUT TO FETCH CURRENT ALARM")
+    console.log("USER SIGNER", userSigner.address)
+    console.log("ADDRESS", address)
+    let alarm = await readContracts.Alarm?.alarms(address)
+    console.log("CURRENT ALARM", alarm)
+    setCurrentAlarm({value: alarm?.value, time: alarm?.time})
   });
 
   // Then read your DAI balance like:
@@ -249,12 +255,21 @@ function App(props) {
     "0x34aA3F359A9D614239015126635CE7732c18fDF3",
   ]);
 
-  // keep track of a variable from the contract in the local React state:
-  const purpose = useContractReader(readContracts, "YourContract", "purpose");
-
   // 📟 Listen for broadcast events
-  const setPurposeEvents = useEventListener(readContracts, "YourContract", "SetPurpose", localProvider, 1);
+  // const setPurposeEvents = useEventListener(readContracts, "Alarm", "SetPurpose", localProvider, 1);
 
+  // const setAlarmEvents = useEventListener(readContracts, "Alarm", "AlarmSet", localProvider, 1)
+
+  // useEffect(() => {
+  //   let userAlarm = setAlarmEvents.find(a => a.args?._for === userSigner.address)
+  //   setCurrentAlarm({value: userAlarm?.args.value, time: userAlarm?.args.time})
+  // }, [setAlarmEvents.length])
+
+  // const cancelAlarmEvents = useEventListener(readContracts, "Alarm", "AlarmCancelled", localProvider, 1)
+  // useEffect(async () => {
+  //   let alarm = await writeContracts.Alarm?.alarms(userSigner.address)
+  //   setCurrentAlarm({value: alarm?.value, time: alarm?.time})
+  // }, [cancelAlarmEvents.length])
   /*
   const addressFromENS = useResolveName(mainnetProvider, "austingriffith.eth");
   console.log("🏷 Resolved austingriffith.eth as:",addressFromENS)
@@ -445,137 +460,61 @@ function App(props) {
     );
   }
 
+  async function cancelAlarm() {
+    try {
+      await writeContracts.Alarm?.connect(userSigner)?.stopAlarm()
+    } catch(err) {
+      console.log(err)
+    }
+  }
+
+  function displayCurrentAlarmTime(currentAlarmI) {
+    if (currentAlarmI.time?.toNumber() > 0) {
+      let date = new Date(currentAlarmI?.time?.toNumber() * 1000)
+      return `${date.getHours()}:${date.getMinutes()}`
+    } else {
+      return 'No Alarm Set'
+    }
+  }
+
+  const [currentAlarm, setCurrentAlarm] = useState({})
+
   return (
     <div className="App">
       {/* ✏️ Edit the header and change the title to your project name */}
       <Header />
       {networkDisplay}
-      <BrowserRouter>
-        <Menu style={{ textAlign: "center" }} selectedKeys={[route]} mode="horizontal">
-          <Menu.Item key="/">
-            <Link
-              onClick={() => {
-                setRoute("/");
-              }}
-              to="/"
-            >
-              YourContract
-            </Link>
-          </Menu.Item>
-          <Menu.Item key="/hints">
-            <Link
-              onClick={() => {
-                setRoute("/hints");
-              }}
-              to="/hints"
-            >
-              Hints
-            </Link>
-          </Menu.Item>
-          <Menu.Item key="/exampleui">
-            <Link
-              onClick={() => {
-                setRoute("/exampleui");
-              }}
-              to="/exampleui"
-            >
-              ExampleUI
-            </Link>
-          </Menu.Item>
-          <Menu.Item key="/mainnetdai">
-            <Link
-              onClick={() => {
-                setRoute("/mainnetdai");
-              }}
-              to="/mainnetdai"
-            >
-              Mainnet DAI
-            </Link>
-          </Menu.Item>
-          <Menu.Item key="/subgraph">
-            <Link
-              onClick={() => {
-                setRoute("/subgraph");
-              }}
-              to="/subgraph"
-            >
-              Subgraph
-            </Link>
-          </Menu.Item>
-        </Menu>
 
-        <Switch>
-          <Route exact path="/">
-            {/*
-                🎛 this scaffolding is full of commonly used components
-                this <Contract/> component will automatically parse your ABI
-                and give you a form to interact with it locally
-            */}
+      <h1>Welcome to Alarmie!</h1>
 
-            <Contract
-              name="YourContract"
-              signer={userSigner}
-              provider={localProvider}
-              address={address}
-              blockExplorer={blockExplorer}
-              contractConfig={contractConfig}
-            />
-          </Route>
-          <Route path="/hints">
-            <Hints
-              address={address}
-              yourLocalBalance={yourLocalBalance}
-              mainnetProvider={mainnetProvider}
-              price={price}
-            />
-          </Route>
-          <Route path="/exampleui">
-            <ExampleUI
-              address={address}
-              userSigner={userSigner}
-              mainnetProvider={mainnetProvider}
-              localProvider={localProvider}
-              yourLocalBalance={yourLocalBalance}
-              price={price}
-              tx={tx}
-              writeContracts={writeContracts}
-              readContracts={readContracts}
-              purpose={purpose}
-              setPurposeEvents={setPurposeEvents}
-            />
-          </Route>
-          <Route path="/mainnetdai">
-            <Contract
-              name="DAI"
-              customContract={mainnetContracts && mainnetContracts.contracts && mainnetContracts.contracts.DAI}
-              signer={userSigner}
-              provider={mainnetProvider}
-              address={address}
-              blockExplorer="https://etherscan.io/"
-              contractConfig={contractConfig}
-              chainId={1}
-            />
-            {/*
-            <Contract
-              name="UNI"
-              customContract={mainnetContracts && mainnetContracts.contracts && mainnetContracts.contracts.UNI}
-              signer={userSigner}
-              provider={mainnetProvider}
-              address={address}
-              blockExplorer="https://etherscan.io/"
-            />
-            */}
-          </Route>
-          <Route path="/subgraph">
-            <Subgraph
-              subgraphUri={props.subgraphUri}
-              tx={tx}
-              writeContracts={writeContracts}
-              mainnetProvider={mainnetProvider}
-            />
-          </Route>
-        </Switch>
-      </BrowserRouter>
+      <h3>Here's how it works.</h3>
+
+      <h3>You set an alarm and stake some ether. If you don't cancel your alarm before the time is up, we donate your ether to charity.</h3>
+
+      <Contract
+        name="Alarm"
+        signer={userSigner}
+        provider={localProvider}
+        address={address}
+        blockExplorer={blockExplorer}
+        contractConfig={contractConfig}
+      />
+
+      <Card
+        size="large"
+        style={{ marginTop: 25, width: "100%", margin: "20px auto", width: "70vw" }}
+      >
+        <h1>Your Current Alarm</h1>
+        <h2>Time: {displayCurrentAlarmTime(currentAlarm)}</h2>
+        <h2>Value: {currentAlarm.value && ethers.utils.formatEther(currentAlarm.value?.toString()) > 0 ? ethers.utils.formatEther(currentAlarm.value.toString()) + ' ETH' : 'No Alarm Set'}</h2>
+        <Button
+          style={{ marginTop: "20px" }}
+          size="large"
+          onClick={() => cancelAlarm()}
+        >
+          Cancel Alarm
+        </Button>
+      </Card>
 
       <ThemeSwitch />
 
@@ -592,35 +531,9 @@ function App(props) {
           logoutOfWeb3Modal={logoutOfWeb3Modal}
           blockExplorer={blockExplorer}
         />
-        {faucetHint}
       </div>
 
-      {/* 🗺 Extra UI like gas price, eth price, faucet, and support: */}
       <div style={{ position: "fixed", textAlign: "left", left: 0, bottom: 20, padding: 10 }}>
-        <Row align="middle" gutter={[4, 4]}>
-          <Col span={8}>
-            <Ramp price={price} address={address} networks={NETWORKS} />
-          </Col>
-
-          <Col span={8} style={{ textAlign: "center", opacity: 0.8 }}>
-            <GasGauge gasPrice={gasPrice} />
-          </Col>
-          <Col span={8} style={{ textAlign: "center", opacity: 1 }}>
-            <Button
-              onClick={() => {
-                window.open("https://t.me/joinchat/KByvmRe5wkR-8F_zz6AjpA");
-              }}
-              size="large"
-              shape="round"
-            >
-              <span style={{ marginRight: 8 }} role="img" aria-label="support">
-                💬
-              </span>
-              Support
-            </Button>
-          </Col>
-        </Row>
-
         <Row align="middle" gutter={[4, 4]}>
           <Col span={24}>
             {

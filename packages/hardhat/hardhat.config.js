@@ -11,6 +11,8 @@ require("hardhat-gas-reporter");
 
 require("@eth-optimism/hardhat-ovm");
 require("@nomiclabs/hardhat-ethers");
+require('hardhat-abi-exporter');
+require("@nomiclabs/hardhat-etherscan");
 
 const { isAddress, getAddress, formatUnits, parseUnits } = utils;
 
@@ -26,7 +28,7 @@ const { isAddress, getAddress, formatUnits, parseUnits } = utils;
 //
 // Select the network you want to deploy to here:
 //
-const defaultNetwork = "localhost";
+const defaultNetwork = "kovan";
 
 const mainnetGwei = 21;
 
@@ -55,6 +57,14 @@ module.exports = {
     currency: "USD",
     coinmarketcap: process.env.COINMARKETCAP || null,
   },
+  abiExporter: {
+    path: './data/abi',
+    clear: true,
+    flat: true,
+    only: [':ERC20$'],
+    spacing: 2,
+    pretty: true,
+  },
 
   // if you want to deploy to a testnet, mainnet, or xdai, you will need to configure:
   // 1. An Infura key (or similar)
@@ -62,6 +72,12 @@ module.exports = {
   // DON'T PUSH THESE HERE!!!
   // An `example.env` has been provided in the Hardhat root. Copy it and rename it `.env`
   // Follow the directions, and uncomment the network you wish to deploy to.
+
+  etherscan: {
+    // Your API key for Etherscan
+    // Obtain one at https://etherscan.io/
+    apiKey: "MJA8RWQU8FJQNG6R8MPWIT7EH1C662AKCI"
+  },
 
   networks: {
     localhost: {

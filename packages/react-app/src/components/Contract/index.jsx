@@ -1,9 +1,10 @@
-import { Card } from "antd";
-import React, { useMemo, useState } from "react";
+import { Card, Button } from "antd";
+import React, { useMemo, useState, useEffect } from "react";
 import { useContractExistsAtAddress, useContractLoader } from "eth-hooks";
-import Account from "../Account";
-import DisplayVariable from "./DisplayVariable";
-import FunctionForm from "./FunctionForm";
+import SetAlarm from './SetAlarm'
+import { Transactor } from "../../helpers";
+import { useEventListener } from "eth-hooks/events/useEventListener";
+const { utils } = require("ethers");
 
 const noContractDisplay = (
   <div>
@@ -76,66 +77,24 @@ export default function Contract({
     return results;
   }, [contract, show]);
 
+  const alarmContractFunction = displayedContractFunctions.filter(con => con[0] === 'setAlarm(uint256)')
+
   const [refreshRequired, triggerRefresh] = useState(false);
-  const contractDisplay = displayedContractFunctions.map(contractFuncInfo => {
-    const contractFunc =
-      contractFuncInfo[1].stateMutability === "view" || contractFuncInfo[1].stateMutability === "pure"
-        ? contract[contractFuncInfo[0]]
-        : contract.connect(signer)[contractFuncInfo[0]];
-
-    if (typeof contractFunc === "function") {
-      if (isQueryable(contractFuncInfo[1])) {
-        // If there are no inputs, just display return value
-        return (
-          <DisplayVariable
-            key={contractFuncInfo[1].name}
-            contractFunction={contractFunc}
-            functionInfo={contractFuncInfo[1]}
-            refreshRequired={refreshRequired}
-            triggerRefresh={triggerRefresh}
-          />
-        );
-      }
-
-      // If there are inputs, display a form to allow users to provide these
-      return (
-        <FunctionForm
-          key={"FF" + contractFuncInfo[0]}
-          contractFunction={contractFunc}
-          functionInfo={contractFuncInfo[1]}
-          provider={provider}
-          gasPrice={gasPrice}
-          triggerRefresh={triggerRefresh}
-        />
-      );
-    }
-    return null;
-  });
 
   return (
     <div style={{ margin: "auto", width: "70vw" }}>
       <Card
-        title={
-          <div>
-            {name}
-            <div style={{ float: "right" }}>
-              <Account
-                address={address}
-                localProvider={provider}
-                injectedProvider={provider}
-                mainnetProvider={provider}
-                price={price}
-                blockExplorer={blockExplorer}
-              />
-              {account}
-            </div>
-          </div>
-        }
         size="large"
         style={{ marginTop: 25, width: "100%" }}
-        loading={contractDisplay && contractDisplay.length <= 0}
       >
-        {contractIsDeployed ? contractDisplay : noContractDisplay}
+        <h1>Set an alarm to get started!</h1>
+        <div style={{maxWidth: '50%', margin: '0 auto'}}>
+          <SetAlarm 
+          contractFunction={contract?.connect(signer)[alarmContractFunction[0][0]]}
+          provider={provider}
+          gasPrice={gasPrice}
+          />
+        </div>
       </Card>
     </div>
   );
